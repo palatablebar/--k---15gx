@@ -14,6 +14,9 @@ def build_export(self, request_id: str) -> dict:
         request = db.get(ExportRequest, request_id)
         if request is None:
             return {"status": "missing", "request_id": request_id}
+        if request.status != "approved":
+            # 重复投递 / 过期任务不得为未批准申请生成文件
+            return {"status": "not_approved", "request_id": request_id}
         if request.build_status == "done":
             return {"status": "already_done", "request_id": request_id, "rows": request.masked_rows}
         result = export_service.build_export(db, request_id)

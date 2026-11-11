@@ -107,7 +107,7 @@ def check_out(check: Any, table_name: str, created_by_email: str | None) -> dict
     }
 
 
-def export_out(request: Any, table: Any, requester: Any, reviewer: Any) -> dict[str, Any]:
+def export_out(request: Any, table: Any, requester: Any, reviewer: Any, gate_stale: bool = False) -> dict[str, Any]:
     return {
         "id": str(request.id),
         "table_id": str(request.table_id),
@@ -130,6 +130,14 @@ def export_out(request: Any, table: Any, requester: Any, reviewer: Any) -> dict[
             str(item.get("name", "")) for item in (request.applied_policies_json or [])
         ],
         "error_detail": request.error_detail,
+        "gate": {
+            "status": getattr(request, "gate_status", "unchecked"),
+            "gaps": list(getattr(request, "gate_gaps_json", None) or []),
+            "fingerprint": (getattr(request, "gate_fingerprint", None) or "")[:12] or None,
+            "snapshot": dict(getattr(request, "gate_snapshot_json", None) or {}),
+            "checked_at": iso(getattr(request, "gate_checked_at", None)),
+            "stale": gate_stale,
+        },
         "created_at": iso(request.created_at),
     }
 

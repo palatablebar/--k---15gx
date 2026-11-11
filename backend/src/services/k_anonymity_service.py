@@ -16,7 +16,9 @@
 """
 from __future__ import annotations
 
+import hashlib
 import itertools
+import json
 from datetime import date, datetime
 from typing import Any
 
@@ -53,6 +55,26 @@ QI_SPECS: dict[str, list[dict[str, Any]]] = {
 
 def levels_for(qi_column: str) -> list[dict[str, Any]]:
     return QI_SPECS.get(qi_column, [{"kind": "exact", "label": "原始取值"}])
+
+
+def signature_of_rows(rows: list[dict[str, Any]], columns: list[str]) -> str:
+    """参与计算的数据签名：行数 + 排序后的值元组。
+
+    与读取顺序无关（排序归一），同一批数据任何时刻重算结果一致；
+    数据增删改都会改变签名，用于「数据变化 → 旧结论失效」的判定。
+    """
+    normalized = sorted(
+        tuple(str(row.get(column) if row.get(column) is not None else "") for column in columns)
+        for row in rows
+    )
+    payload = json.dumps([len(rows), normalized], ensure_ascii=False, separators=(",", ":"))
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def fetch_signature(db: Session, table_name: str, columns: list[str]) -> str:
+    """按校验口径（同列集合、同行数上限）重取数据并计算当前签名。"""
+    rows = raw_data_service.fetch_rows(db, table_name, columns, KANON_MAX_ROWS)
+    return signature_of_rows(rows, columns)
 
 
 def _parse_date(value: Any) -> date | None:
@@ -295,6 +317,7 @@ def execute_check(db: Session, check: KAnonymityCheck) -> KAnonymityCheck:
         check.class_size_histogram_json = result["class_size_histogram"]
         check.information_loss = result["recommended"]["information_loss"]
         check.conclusion = result["conclusion"]
+        check.data_signature = signature_of_rows(rows, fetch_columns)
         check.error_detail = None
         check.finished_at = _now()
         db.commit()

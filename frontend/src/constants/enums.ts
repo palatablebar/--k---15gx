@@ -5,6 +5,7 @@
 import type {
   ColumnRole,
   ExportStatus,
+  GateStatus,
   MaskMethod,
   PiiType,
   SensitivityLevel,
@@ -50,6 +51,12 @@ export const EXPORT_STATUS_LABELS: Record<ExportStatus, string> = {
   pending: '待审批',
   approved: '已批准',
   rejected: '已驳回',
+};
+
+export const GATE_STATUS_LABELS: Record<GateStatus, string> = {
+  unchecked: '未校验',
+  passed: '门禁达标',
+  blocked: '门禁拦截',
 };
 
 export const BUILD_STATUS_LABELS: Record<string, string> = {

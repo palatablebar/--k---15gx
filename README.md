@@ -3,6 +3,7 @@
 医疗 SaaS「云诊」的合规数据服务组，向科研客户交付脱敏数据集。上游业务库（`clinic` schema）有三张表：
 `patients`（800 行）、`visits`（2400 行）、`labs`（1200 行）。maskguard 负责：列画像 → PII 类型识别与证据 →
 掩码策略与预览 → k-匿名 / ℓ-diversity 校验与泛化建议 → 导出申请审批与脱敏文件生成，全程审计留痕。
+导出批准前强制过**合规门禁**：按当前导出范围与现行策略重估达标结论，规则或数据一变旧结论即失效。
 
 ## 真实场景
 
@@ -53,6 +54,16 @@ docker compose exec -T backend python -m scripts.seed_demo
    - 年龄基准日固定为 `2026-11-10`，seed/校验可复现。
 3. **异步执行**：k-匿名校验与导出文件生成由 Celery worker 执行（任务名 `maskguard.run_k_anonymity` /
    `maskguard.build_export`），backend 发起并落库；broker 不可用时同步兜底，前端轮询结果。
+4. **导出合规门禁**（`backend/src/services/export_gate.py`）：批准前按「当前导出范围 × 现行策略 ×
+   最新校验 × 当前数据」重估，任一缺口即拦截（409 + 缺口明细，落台账与审计）：
+   - 直接标识 / PII 列必须全部配有生效策略（`POLICY_MISSING_DIRECT_ID`）；
+   - 范围含 ≥2 准标识且有敏感列时，最新 k-匿名校验必须成功且达标（`KANON_MISSING` /
+     `KANON_CHECK_FAILED` / `KANON_NOT_PASSED`），且覆盖范围全部准标识（`KANON_QI_UNCOVERED`）；
+   - 现行策略的泛化强度不得低于校验推荐层级（`KANON_LEVEL_GAP`）；
+   - 校验之后策略变更或上游数据变化（数据签名不一致），旧结论失效
+     （`POLICY_CHANGED_AFTER_CHECK` / `DATA_CHANGED_AFTER_CHECK`）。
+   结论指纹随环境变化即失效（台账标记「已失效」）；`POST /exports/{id}/precheck` 重新校验，
+   批准用条件 UPDATE 原子认领，重复执行不新增文件、不再次放行。
 
 ## 技术栈
 
@@ -85,7 +96,7 @@ frontend/
 ## 共享枚举（前后端各一份，改动必须同步）
 
 - 后端：`backend/src/constants/enums.py`（PIIType / MaskMethod / GeneralizeKind / SensitivityLevel /
-  ColumnRole / ExportStatus / BuildStatus / CheckStatus / AuditAction）
+  ColumnRole / ExportStatus / GateStatus / BuildStatus / CheckStatus / AuditAction）
 - 前端：`frontend/src/constants/enums.ts`（同名枚举 + 中文标签），角色权限矩阵：
   `backend/src/constants/roles.py` ↔ `frontend/src/constants/rbac.ts`
 
@@ -101,6 +112,8 @@ frontend/
 
 3 张表 / 23 列 / 6 条 PII 证据 / 5 条策略 / 3 个导出申请（待审批、已批准、已驳回）/ 1 次 k-匿名校验；
 `patients` 800 行（前 60 行含 18 位身份证，58 条校验位正确、2 条故意写错）、`visits` 2400 行、`labs` 1200 行。
+已批准的导出会按现行环境补落门禁结论（seed 的 5 条策略未覆盖准标识泛化，历史导出会被门禁标记缺口，
+演示路径：补 zip 泛化策略 → 重跑 k-匿名校验 → 台账「校验」→ 批准）。
 seed 结束时打印 `SEED_SUMMARY {json}`，连跑两次数字一致。
 
 ## License

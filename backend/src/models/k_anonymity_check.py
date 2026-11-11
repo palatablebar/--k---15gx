@@ -36,6 +36,8 @@ class KAnonymityCheck(Base, TimestampMixin):
     class_size_histogram_json: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
     information_loss: Mapped[float | None] = mapped_column(Float, nullable=True)
     conclusion: Mapped[str] = mapped_column(String(400), nullable=False, default="")
+    # 执行时参与计算的 QI+敏感列数据签名：数据一旦变化，本次结论即失效
+    data_signature: Mapped[str | None] = mapped_column(String(64), nullable=True)
     error_detail: Mapped[str | None] = mapped_column(Text, nullable=True)
     task_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)

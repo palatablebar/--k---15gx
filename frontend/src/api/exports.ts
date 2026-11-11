@@ -6,6 +6,8 @@ export const exportApi = {
   list: () => api.get<ListResponse<ExportRequest>>('/exports'),
   create: (payload: { table_id: string; purpose: string; requested_rows: number }) =>
     api.post<{ request: ExportRequest }>('/exports', payload),
+  precheck: (requestId: string) =>
+    api.post<{ request: ExportRequest }>(`/exports/${requestId}/precheck`),
   approve: (requestId: string, note: string) =>
     api.post<{ request: ExportRequest }>(`/exports/${requestId}/approve`, { note }),
   reject: (requestId: string, note: string) =>

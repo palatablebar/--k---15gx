@@ -11,6 +11,7 @@ export class ApiError extends Error {
   code: string;
   detail: string;
   traceId: string | null;
+  extra: Record<string, unknown>;
 
   constructor(status: number, payload: ApiErrorShape) {
     super(payload.message || '请求失败');
@@ -18,6 +19,7 @@ export class ApiError extends Error {
     this.code = payload.code || 'INTERNAL_ERROR';
     this.detail = payload.detail ?? '';
     this.traceId = payload.trace_id ?? null;
+    this.extra = payload.extra ?? {};
   }
 }
 

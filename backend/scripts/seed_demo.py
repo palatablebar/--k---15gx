@@ -29,7 +29,7 @@ from src.models.k_anonymity_check import KAnonymityCheck
 from src.models.masking_policy import MaskingPolicy
 from src.models.pii_finding import PIIFinding
 from src.models.user import User
-from src.services import export_service, k_anonymity_service, pii_detector, raw_data_service
+from src.services import export_gate, export_service, k_anonymity_service, pii_detector, raw_data_service
 from src.utils.password import hash_password
 from src.utils.pii_rules import ID_CARD_CHECK_CODES, ID_CARD_WEIGHTS, MOBILE_SEGMENTS
 
@@ -522,6 +522,15 @@ EXPORT_DEFINITIONS: list[dict[str, Any]] = [
 ]
 
 
+def _refresh_gate(db, request: ExportRequest) -> None:
+    """按现行环境为已批准的导出补落门禁结论（老库升级后重跑 seed 也会补齐）。"""
+    if request.status != ExportStatus.APPROVED.value:
+        return
+    verdict = export_gate.evaluate(db, request)
+    export_gate.apply_verdict(request, verdict)
+    db.commit()
+
+
 def seed_exports(db, users: dict[str, User], tables: dict[str, DatasetTable]) -> None:
     for definition in EXPORT_DEFINITIONS:
         table = tables[definition["table"]]
@@ -541,6 +550,7 @@ def seed_exports(db, users: dict[str, User], tables: dict[str, DatasetTable]) ->
                 existing.status = ExportStatus.APPROVED.value
                 db.commit()
                 export_service.build_export(db, str(existing.id))
+            _refresh_gate(db, existing)
             continue
         request = ExportRequest(
             requester_id=users[ROLE_CLIENT].id,
@@ -563,6 +573,7 @@ def seed_exports(db, users: dict[str, User], tables: dict[str, DatasetTable]) ->
         _created("ExportRequest", f"{definition['table']}@{definition['dataset_version']}")
         if definition["build"]:
             export_service.build_export(db, str(request.id))
+        _refresh_gate(db, request)
 
 
 # ------------------------------------------------------------------ 审计 ----

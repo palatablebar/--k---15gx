@@ -8,16 +8,25 @@ import { StampBadge } from '../components/common/StampBadge';
 import { EmptyState } from '../components/common/EmptyState';
 import { StatStrip } from '../components/common/StatStrip';
 import { formatDate, formatNumber, shortId } from '../utils/format';
-import { BUILD_STATUS_LABELS, EXPORT_STATUS_LABELS } from '../constants/enums';
+import { BUILD_STATUS_LABELS, EXPORT_STATUS_LABELS, GATE_STATUS_LABELS } from '../constants/enums';
 import type { DatasetTable, ExportRequest } from '../types/models';
 
 const statusTone = (status: ExportRequest['status']) =>
   status === 'approved' ? 'ok' : status === 'rejected' ? 'stamp' : 'warn';
 
+/** 门禁徽标：未校验不显示；结论失效优先于达标/拦截（规则或数据已变化）。 */
+const gateView = (item: ExportRequest) => {
+  const gate = item.gate;
+  if (gate.status === 'unchecked') return null;
+  if (gate.stale) return { tone: 'warn' as const, label: '门禁结论已失效' };
+  if (gate.status === 'passed') return { tone: 'ok' as const, label: GATE_STATUS_LABELS.passed };
+  return { tone: 'stamp' as const, label: `${GATE_STATUS_LABELS.blocked} · ${gate.gaps.length} 项` };
+};
+
 export const ExportsPage = () => {
   const can = useAuthStore((state) => state.can);
   const user = useAuthStore((state) => state.user);
-  const { items, loading, busyId, error, load, submit, approve, reject } = useExportStore();
+  const { items, loading, busyId, error, load, submit, precheck, approve, reject } = useExportStore();
   const [tables, setTables] = useState<DatasetTable[]>([]);
   const [tableId, setTableId] = useState('');
   const [purpose, setPurpose] = useState('心研所 12 月随访分析，仅需去标识行级数据，伦理批件 YZ-2026-131。');
@@ -43,10 +52,16 @@ export const ExportsPage = () => {
     if (ok) setFormMessage('导出申请已提交，等待 admin / dpo 审批。');
   };
 
+  const handlePrecheck = async (requestId: string) => {
+    setFormMessage(null);
+    const ok = await precheck(requestId);
+    if (ok) setFormMessage('合规校验完成，结论与缺口已写入台账（规则或数据变化后需重新校验）。');
+  };
+
   const handleApprove = async (requestId: string) => {
     setFormMessage(null);
     const ok = await approve(requestId, note);
-    if (ok) setFormMessage('已批准，worker 正在生成脱敏 CSV 并计算 sha256 摘要。');
+    if (ok) setFormMessage('门禁达标，已批准；worker 正在生成脱敏 CSV 并计算 sha256 摘要。');
   };
 
   const handleReject = async (requestId: string) => {
@@ -62,10 +77,14 @@ export const ExportsPage = () => {
       <SectionHead
         kicker="05 / EXPORT LEDGER"
         title="导出申请与审批台账"
-        description="谁申请、什么用途、谁批的、文件摘要多少，全部留在台账里。批准后 worker 真实生成脱敏 CSV，文件摘要写回记录。"
+        description="谁申请、什么用途、谁批的、文件摘要多少，全部留在台账里。批准前强制过合规门禁：直接标识列必须全部配有生效策略，k-匿名校验必须达标且覆盖当前导出范围；规则或数据一变，旧结论自动失效。"
       />
 
-      {error ? <div className="notice section">{error}</div> : null}
+      {error ? (
+        <div className="notice section" style={{ whiteSpace: 'pre-line' }}>
+          {error}
+        </div>
+      ) : null}
       {formMessage ? <div className="notice notice-ok section">{formMessage}</div> : null}
 
       <div className="section">
@@ -125,7 +144,8 @@ export const ExportsPage = () => {
                 <textarea className="textarea" value={note} onChange={(event) => setNote(event.target.value)} />
               </label>
               <p className="faint" style={{ fontSize: 11, marginTop: 10 }}>
-                在下方台账里点「批准」或「驳回」，备注会写入对应记录；批准后 worker 立即生成脱敏文件。
+                「校验」按当前导出范围与现行策略重估门禁并列出缺口；「批准」只在门禁达标时放行，
+                被拦截的申请补齐缺口（配策略 / 重跑 k-匿名校验）后可重新校验再批。
               </p>
             </>
           ) : (
@@ -155,14 +175,16 @@ export const ExportsPage = () => {
                     <th style={{ width: 60 }} className="right">
                       行数
                     </th>
-                    <th style={{ width: 96 }}>状态</th>
+                    <th style={{ width: 176 }}>状态 / 门禁</th>
                     <th style={{ width: 150 }}>文件摘要</th>
                     <th style={{ width: 118 }}>提交时间</th>
                     <th style={{ width: 150 }}>操作</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {items.map((item) => (
+                  {items.map((item) => {
+                    const gate = gateView(item);
+                    return (
                     <tr key={item.id}>
                       <td className="mono faint">{shortId(item.id)}</td>
                       <td>
@@ -188,6 +210,34 @@ export const ExportsPage = () => {
                         <div className="faint" style={{ fontSize: 10, marginTop: 3 }}>
                           {BUILD_STATUS_LABELS[item.build_status]}
                         </div>
+                        {gate ? (
+                          <div style={{ marginTop: 4 }}>
+                            <StampBadge tone={gate.tone} rotate={1}>
+                              {gate.label}
+                            </StampBadge>
+                          </div>
+                        ) : (
+                          <div className="faint" style={{ fontSize: 10, marginTop: 4 }}>
+                            门禁：{GATE_STATUS_LABELS.unchecked}
+                          </div>
+                        )}
+                        {item.gate.stale ? (
+                          <div className="faint" style={{ fontSize: 10, marginTop: 3, maxWidth: 150 }}>
+                            规则或数据已变化，需重新校验
+                          </div>
+                        ) : null}
+                        {item.gate.gaps.length > 0 && !item.gate.stale ? (
+                          <ul style={{ margin: '4px 0 0', paddingLeft: 14, maxWidth: 170 }}>
+                            {item.gate.gaps.map((gap, index) => (
+                              <li
+                                key={`${gap.code}-${index}`}
+                                style={{ fontSize: 10, color: 'var(--stamp)', lineHeight: 1.5 }}
+                              >
+                                {gap.message}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : null}
                       </td>
                       <td className="mono faint" style={{ fontSize: 10.5 }}>
                         {item.file_digest ? `${item.file_digest.slice(0, 14)}…` : '—'}
@@ -202,6 +252,15 @@ export const ExportsPage = () => {
                         <div className="row" style={{ gap: 4 }}>
                           {can('exports:approve') && item.status === 'pending' ? (
                             <>
+                              <button
+                                className="btn"
+                                type="button"
+                                style={{ padding: '3px 8px', fontSize: 11 }}
+                                disabled={busyId === item.id}
+                                onClick={() => void handlePrecheck(item.id)}
+                              >
+                                校验
+                              </button>
                               <button
                                 className="btn"
                                 type="button"
@@ -241,7 +300,8 @@ export const ExportsPage = () => {
                         ) : null}
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

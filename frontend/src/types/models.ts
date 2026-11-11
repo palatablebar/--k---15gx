@@ -6,6 +6,40 @@ export type ColumnRole = 'direct_id' | 'quasi_id' | 'sensitive' | 'non_sensitive
 export type ExportStatus = 'pending' | 'approved' | 'rejected';
 export type BuildStatus = 'idle' | 'queued' | 'running' | 'done' | 'failed';
 export type CheckStatus = 'queued' | 'running' | 'succeeded' | 'failed';
+export type GateStatus = 'unchecked' | 'passed' | 'blocked';
+
+export interface GateGap {
+  code: string;
+  message: string;
+  column?: string;
+  columns?: string[];
+  policies?: string[];
+  check_id?: string;
+}
+
+export interface ExportGate {
+  status: GateStatus;
+  gaps: GateGap[];
+  fingerprint: string | null;
+  snapshot: {
+    evaluated_at?: string | null;
+    table?: string;
+    kanon_required?: boolean;
+    check?: {
+      id: string;
+      status: string;
+      passed: boolean | null;
+      final_k: number | null;
+      final_l: number | null;
+      target_k: number;
+      target_l: number;
+      finished_at: string | null;
+    } | null;
+    [key: string]: unknown;
+  };
+  checked_at: string | null;
+  stale: boolean;
+}
 
 export interface User {
   id: string;
@@ -224,6 +258,7 @@ export interface ExportRequest {
   masked_rows: number | null;
   applied_policies: string[];
   error_detail: string | null;
+  gate: ExportGate;
   created_at: string | null;
 }
 

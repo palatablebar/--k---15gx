@@ -50,6 +50,14 @@ class ExportStatus(str, Enum):
     REJECTED = "rejected"
 
 
+class GateStatus(str, Enum):
+    """导出合规门禁结论：未校验 / 达标 / 被拦截（达标与否都可因规则或数据变化而失效）。"""
+
+    UNCHECKED = "unchecked"
+    PASSED = "passed"
+    BLOCKED = "blocked"
+
+
 class BuildStatus(str, Enum):
     IDLE = "idle"
     QUEUED = "queued"
@@ -73,7 +81,9 @@ class AuditAction(str, Enum):
     POLICY_PREVIEW = "policy.preview"
     KANON_CHECK = "kanon.check"
     EXPORT_SUBMIT = "export.submit"
+    EXPORT_PRECHECK = "export.precheck"
     EXPORT_APPROVE = "export.approve"
+    EXPORT_BLOCKED = "export.blocked"
     EXPORT_REJECT = "export.reject"
     EXPORT_DOWNLOAD = "export.download"
 
@@ -104,4 +114,10 @@ EXPORT_STATUS_LABELS: dict[str, str] = {
     ExportStatus.PENDING.value: "待审批",
     ExportStatus.APPROVED.value: "已批准",
     ExportStatus.REJECTED.value: "已驳回",
+}
+
+GATE_STATUS_LABELS: dict[str, str] = {
+    GateStatus.UNCHECKED.value: "未校验",
+    GateStatus.PASSED.value: "门禁达标",
+    GateStatus.BLOCKED.value: "门禁拦截",
 }

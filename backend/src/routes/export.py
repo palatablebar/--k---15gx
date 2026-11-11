@@ -30,6 +30,16 @@ def create(
     return export_controller.create(db, payload, user, request)
 
 
+@router.post("/{request_id}/precheck")
+def precheck(
+    request_id: str,
+    request: Request,
+    user: User = Depends(require_permission("exports:approve")),
+    db: Session = Depends(get_db),
+) -> dict:
+    return export_controller.precheck(db, request_id, user, request)
+
+
 @router.post("/{request_id}/approve")
 def approve(
     request_id: str,

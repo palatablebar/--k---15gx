@@ -21,6 +21,10 @@ def create(db: Session, payload: ExportCreateRequest, user: User, request: Reque
     return {"request": export_service.submit(db, user, payload, request)}
 
 
+def precheck(db: Session, request_id: str, user: User, request: Request) -> dict[str, Any]:
+    return {"request": export_service.precheck(db, user, request_id, request)}
+
+
 def approve(db: Session, request_id: str, payload: ReviewRequest, user: User, request: Request) -> dict[str, Any]:
     return {"request": export_service.approve(db, user, request_id, payload.note, request)}
 

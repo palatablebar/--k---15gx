@@ -36,3 +36,10 @@ class ExportRequest(Base, TimestampMixin):
     masked_rows: Mapped[int | None] = mapped_column(Integer, nullable=True)
     applied_policies_json: Mapped[list[Any]] = mapped_column(JSONB, nullable=False, default=list)
     error_detail: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # 合规门禁：基于当前导出范围 × 现行策略 × 最新校验 × 当前数据的达标结论。
+    # 指纹一旦与环境不符（策略/校验/数据变化），结论即失效，需重新校验。
+    gate_status: Mapped[str] = mapped_column(String(20), nullable=False, default="unchecked")
+    gate_gaps_json: Mapped[list[Any]] = mapped_column(JSONB, nullable=False, default=list)
+    gate_fingerprint: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    gate_snapshot_json: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+    gate_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

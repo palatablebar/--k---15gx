@@ -10,6 +10,9 @@ LOG_TEMPLATES: dict[str, str] = {
     "kanon.done": "kanon.done check={check} base_k={base_k} rec_k={rec_k} pass={passed}",
     "kanon.failed": "kanon.failed check={check} reason={reason}",
     "export.submit": "export.submit request={request} requester={requester} table={table}",
+    "export.gate": "export.gate request={request} passed={passed} gaps={gaps}",
+    "export.blocked": "export.blocked request={request} gaps={gaps}",
     "export.build": "export.build request={request} rows={rows} digest={digest}",
+    "export.build.skip": "export.build.skip request={request} digest={digest}",
     "export.failed": "export.failed request={request} reason={reason}",
 }
