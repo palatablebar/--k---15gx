@@ -1,0 +1,44 @@
+/* 设计 token：涂改档案风（暖灰纸 + 印泥红 + 深灰墨）。
+   所有颜色走 oklch，组件里不允许硬编码颜色值。 */
+:root {
+  /* 纸张层 */
+  --paper: oklch(0.9 0.01 60);
+  --paper-raised: oklch(0.945 0.008 60);
+  --paper-deep: oklch(0.845 0.012 60);
+  --paper-shadow: oklch(0.8 0.012 58);
+
+  /* 墨色层 */
+  --ink: oklch(0.26 0.012 60);
+  --ink-soft: oklch(0.43 0.012 58);
+  --ink-faint: oklch(0.6 0.01 58);
+
+  /* 细线与边框 */
+  --rule: oklch(0.76 0.014 58);
+  --rule-strong: oklch(0.55 0.016 56);
+
+  /* 印泥红：印章、删除线、警戒 */
+  --stamp: oklch(0.5 0.15 25);
+  --stamp-deep: oklch(0.44 0.16 25);
+  --stamp-wash: oklch(0.93 0.032 30);
+
+  /* 状态色（全部低饱和，避免霓虹） */
+  --olive: oklch(0.52 0.07 132);
+  --olive-wash: oklch(0.93 0.025 130);
+  --amber: oklch(0.62 0.11 74);
+  --amber-wash: oklch(0.93 0.03 78);
+
+  /* 字体 */
+  --font-display: 'Libre Baskerville', Georgia, 'Songti SC', 'Noto Serif SC', serif;
+  --font-body: 'Public Sans', 'Helvetica Neue', Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'Public Sans', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+
+  /* 尺度 */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 18px;
+  --space-5: 26px;
+  --space-6: 38px;
+  --rail-width: 232px;
+  --radius: 2px;
+}
